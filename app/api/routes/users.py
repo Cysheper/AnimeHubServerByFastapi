@@ -19,7 +19,8 @@ from app.models.user import User, Follow
 from app.models.post import Post, PostLike, PostFavorite
 from app.schemas.user import UserProfileUpdate, PasswordChange, UserSettings, DeleteAccount
 from app.schemas.common import success_response
-
+from scripts.uploadImage2Oss import upload_file, bucket
+    
 router = APIRouter(prefix="/users", tags=["用户"])
 
 
@@ -160,15 +161,18 @@ async def upload_avatar(
     
     # 生成文件名
     ext = avatar.filename.split(".")[-1] if avatar.filename else "jpg"
-    filename = f"{current_user.id}_{uuid.uuid4().hex}.{ext}"
-    filepath = os.path.join(settings.UPLOAD_DIR, filename)
+    filename = f"{current_user.id}_avatar.{ext}"
+    
     
     # 保存文件
-    with open(filepath, "wb") as f:
-        f.write(content)
-    
+    upload_file(
+        bucket=bucket,
+        object_name=f"avatars/{filename}",
+        data=content
+    )
+
     # 更新用户头像URL
-    avatar_url = f"/uploads/{filename}"
+    avatar_url = f"https://cynite.oss-cn-guangzhou.aliyuncs.com/avatars/{filename}"
     current_user.avatar = avatar_url
     await db.flush()
     
