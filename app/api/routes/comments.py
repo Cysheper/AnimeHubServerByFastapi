@@ -105,3 +105,37 @@ async def like_comment(
         message = "点赞成功"
     
     return success_response(message=message)
+
+
+@router.delete("/comments/{comment_id}")
+async def delete_comment(
+    comment_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    """删除评论"""
+    # 查询评论
+    result = await db.execute(select(Comment).where(Comment.id == comment_id))
+    comment = result.scalar_one_or_none()
+    
+    if not comment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="评论不存在"
+        )
+    
+    # 检查是否是评论作者本人或管理员
+    if comment.author_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权删除此评论"
+        )
+    
+    # 删除评论的点赞记录
+    from sqlalchemy import delete
+    await db.execute(delete(CommentLike).where(CommentLike.comment_id == comment_id))
+    
+    # 删除评论
+    await db.delete(comment)
+    
+    return success_response(message="删除成功")

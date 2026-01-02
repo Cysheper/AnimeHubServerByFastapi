@@ -34,6 +34,13 @@ class PostCreate(PostBase):
     pass
 
 
+class PostUpdate(BaseModel):
+    """帖子更新模型"""
+    title: Optional[str] = Field(None, min_length=1, max_length=100)
+    content: Optional[str] = Field(None, min_length=1, max_length=5000)
+    images: Optional[list[str]] = Field(default=None, max_length=9)
+
+
 class PostResponse(BaseModel):
     """帖子响应模型"""
     id: int

@@ -14,7 +14,7 @@ from app.core.deps import get_current_user, get_current_user_optional
 from app.models.user import User
 from app.models.post import Post, PostLike, PostFavorite
 from app.models.comment import Comment
-from app.schemas.post import PostCreate
+from app.schemas.post import PostCreate, PostUpdate
 from app.schemas.common import success_response
 
 router = APIRouter(prefix="/posts", tags=["帖子"])
@@ -163,6 +163,54 @@ async def get_hot_posts(
     )
 
 
+@router.get("/search")
+async def search_posts(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Optional[User], Depends(get_current_user_optional)],
+    keyword: str = Query(..., min_length=1, description="搜索关键词"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """搜索帖子"""
+    offset = (page - 1) * limit
+    
+    # 搜索标题和内容
+    search_filter = Post.title.ilike(f"%{keyword}%") | Post.content.ilike(f"%{keyword}%")
+    
+    query = (
+        select(Post)
+        .options(
+            selectinload(Post.author),
+            selectinload(Post.likes),
+            selectinload(Post.comments)
+        )
+        .where(search_filter)
+        .order_by(desc(Post.created_at))
+        .offset(offset)
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    posts = result.scalars().all()
+    
+    # 查询总数
+    count_query = select(func.count(Post.id)).where(search_filter)
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    items = [format_post(post, current_user) for post in posts]
+    
+    return success_response(
+        data={
+            "items": items,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "keyword": keyword,
+            "hasMore": offset + len(items) < total
+        }
+    )
+
+
 @router.get("/recommended")
 async def get_recommended_posts(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -279,6 +327,107 @@ async def create_post(
         },
         message="发布成功"
     )
+
+
+@router.put("/{post_id}")
+async def update_post(
+    post_id: int,
+    post_data: PostUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    """修改帖子"""
+    # 查询帖子
+    query = (
+        select(Post)
+        .options(
+            selectinload(Post.author),
+            selectinload(Post.likes),
+            selectinload(Post.comments)
+        )
+        .where(Post.id == post_id)
+    )
+    result = await db.execute(query)
+    post = result.scalar_one_or_none()
+    
+    if not post:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="帖子不存在"
+        )
+    
+    # 检查是否是作者本人
+    if post.author_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权修改此帖子"
+        )
+    
+    # 更新字段
+    if post_data.title is not None:
+        post.title = post_data.title
+    if post_data.content is not None:
+        post.content = post_data.content
+    if post_data.images is not None:
+        post.images = post_data.images
+    
+    post.updated_at = datetime.now(timezone.utc)
+    
+    await db.flush()
+    await db.refresh(post)
+    
+    return success_response(
+        data=format_post(post, current_user),
+        message="修改成功"
+    )
+
+
+@router.delete("/{post_id}")
+async def delete_post(
+    post_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    """删除帖子"""
+    # 查询帖子
+    result = await db.execute(select(Post).where(Post.id == post_id))
+    post = result.scalar_one_or_none()
+    
+    if not post:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="帖子不存在"
+        )
+    
+    # 检查是否是作者本人或管理员
+    if post.author_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权删除此帖子"
+        )
+    
+    # 删除相关的点赞记录
+    await db.execute(
+        select(PostLike).where(PostLike.post_id == post_id)
+    )
+    from sqlalchemy import delete
+    await db.execute(delete(PostLike).where(PostLike.post_id == post_id))
+    
+    # 删除相关的收藏记录
+    await db.execute(delete(PostFavorite).where(PostFavorite.post_id == post_id))
+    
+    # 删除相关的评论点赞和评论
+    from app.models.comment import CommentLike
+    comments_result = await db.execute(select(Comment.id).where(Comment.post_id == post_id))
+    comment_ids = [row[0] for row in comments_result.fetchall()]
+    if comment_ids:
+        await db.execute(delete(CommentLike).where(CommentLike.comment_id.in_(comment_ids)))
+        await db.execute(delete(Comment).where(Comment.post_id == post_id))
+    
+    # 删除帖子
+    await db.delete(post)
+    
+    return success_response(message="删除成功")
 
 
 @router.post("/{post_id}/like")
