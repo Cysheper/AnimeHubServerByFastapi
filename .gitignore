@@ -21,5 +21,3 @@ scripts/.env
 
 # secrets
 scripts/.env
-.env
-*.env
