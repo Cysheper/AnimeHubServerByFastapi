@@ -8,10 +8,10 @@ cd $PROJECT_DIR
 # OSS 配置 (阿里云对象存储)
 # 请替换为你的实际密钥，或者在环境中预先设置这些变量
 if not set -q OSS_ACCESS_KEY_ID
-    set -gx OSS_ACCESS_KEY_ID "LTAI5t9LSTbuB7VrbbGTfQ3t"
+    set -gx OSS_ACCESS_KEY_ID "your_access_key_id"
 end
 if not set -q OSS_ACCESS_KEY_SECRET
-    set -gx OSS_ACCESS_KEY_SECRET "6bS34yo6okGb4LjOhZpCBf905g4Olt"
+    set -gx OSS_ACCESS_KEY_SECRET "your_access_key_secret"
 end
 
 # 颜色输出
