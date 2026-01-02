@@ -16,3 +16,7 @@ venv/
 *.db
 *.db-journal
 *.sqlite
+# secrets
+scripts/.env
+.env
+*.env
