@@ -8,11 +8,11 @@
 #   ./start.fish logs     查看日志
 
 # 设置项目根目录
-set -l PROJECT_DIR (dirname (status filename))
+set -g PROJECT_DIR (dirname (status filename))
 cd $PROJECT_DIR
 
-set -l PID_FILE "$PROJECT_DIR/.server.pid"
-set -l LOG_FILE "$PROJECT_DIR/server.log"
+set -g PID_FILE "$PROJECT_DIR/.server.pid"
+set -g LOG_FILE "$PROJECT_DIR/server.log"
 
 # 从 .env 文件加载环境变量
 if test -f "$PROJECT_DIR/.env"
@@ -23,50 +23,27 @@ if test -f "$PROJECT_DIR/.env"
     end
 end
 
-# 颜色输出
-set -l GREEN '\033[0;32m'
-set -l YELLOW '\033[1;33m'
-set -l RED '\033[0;31m'
-set -l NC '\033[0m'
-
 function log_info
-    echo -e "$GREEN[INFO]$NC $argv"
+    set_color green
+    echo -n "[INFO] "
+    set_color normal
+    echo $argv
 end
 
 function log_warn
-    echo -e "$YELLOW[WARN]$NC $argv"
+    set_color yellow
+    echo -n "[WARN] "
+    set_color normal
+    echo $argv
 end
 
 function log_error
-    echo -e "$RED[ERROR]$NC $argv"
+    set_color red
+    echo -n "[ERROR] "
+    set_color normal
+    echo $argv
 end
 
-# 检查 uv 是否安装
-if not command -v uv &> /dev/null
-    log_error "uv 未安装，请先安装 uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
-    exit 1
-end
-
-# 同步依赖
-log_info "正在同步项目依赖..."
-uv sync
-if test $status -ne 0
-    log_error "依赖同步失败"
-    exit 1
-end
-
-# 检查数据库是否存在，如果不存在则初始化
-if not test -f "$PROJECT_DIR/anime_hub.db"
-    log_warn "数据库不存在，正在初始化..."
-    uv run python -m scripts.init_db
-    if test $status -ne 0
-        log_error "数据库初始化失败"
-        exit 1
-    end
-    log_info "数据库初始化完成"
-end
-
-# 启动服务器
 function start_server
     set -l mode $argv[1]
     
@@ -74,14 +51,14 @@ function start_server
     
     if test "$mode" = "daemon"
         # 后台运行模式
-        nohup uv run uvicorn app.main:app --host 0.0.0.0 --port 8080 > $LOG_FILE 2>&1 &
+        nohup uv run uvicorn app.main:app --host 0.0.0.0 --port 3001 >$LOG_FILE 2>&1 &
         set -l pid $last_pid
-        echo $pid > $PID_FILE
+        echo $pid >$PID_FILE
         sleep 1
         
         if kill -0 $pid 2>/dev/null
             log_info "服务已在后台启动 (PID: $pid)"
-            log_info "API文档地址: http://localhost:8080/docs"
+            log_info "API文档地址: http://localhost:3001/docs"
             log_info "日志文件: $LOG_FILE"
             log_info "停止服务: ./start.fish stop"
         else
@@ -90,10 +67,10 @@ function start_server
         end
     else
         # 前台运行模式
-        log_info "API文档地址: http://localhost:8080/docs"
+        log_info "API文档地址: http://localhost:3001/docs"
         log_info "按 Ctrl+C 停止服务"
         echo ""
-        uv run uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+        uv run uvicorn app.main:app --host 0.0.0.0 --port 3001 --reload
     end
 end
 
@@ -119,7 +96,7 @@ function show_status
         set -l pid (cat $PID_FILE)
         if kill -0 $pid 2>/dev/null
             log_info "服务运行中 (PID: $pid)"
-            log_info "API地址: http://localhost:8080"
+            log_info "API地址: http://localhost:3001"
         else
             log_warn "服务未运行 (PID 文件存在但进程已停止)"
             rm -f $PID_FILE
@@ -141,20 +118,18 @@ end
 set -l cmd $argv[1]
 
 switch "$cmd"
-    case "stop"
+    case stop
         stop_server
         exit 0
-    case "status"
+    case status
         show_status
         exit 0
-    case "logs"
+    case logs
         show_logs
         exit 0
-    case "-d" "--daemon"
-        # 继续执行，后面以守护进程模式启动
+    case -d --daemon
         set -g DAEMON_MODE true
     case ""
-        # 前台模式
         set -g DAEMON_MODE false
     case "*"
         echo "用法: ./start.fish [选项]"
@@ -169,7 +144,7 @@ switch "$cmd"
 end
 
 # 检查 uv 是否安装
-if not command -v uv &> /dev/null
+if not command -v uv >/dev/null 2>&1
     log_error "uv 未安装，请先安装 uv: curl -LsSf https://astral.sh/uv/install.sh | sh"
     exit 1
 end
@@ -194,7 +169,7 @@ if not test -f "$PROJECT_DIR/anime_hub.db"
 end
 
 # 启动服务器
-if test "$DAEMON_MODE" = "true"
+if test "$DAEMON_MODE" = true
     start_server daemon
 else
     start_server
