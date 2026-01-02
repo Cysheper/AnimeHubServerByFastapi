@@ -50,11 +50,24 @@ function start_server
     log_info "正在启动 动漫Hub 后端服务..."
     
     if test "$mode" = "daemon"
-        # 后台运行模式
-        nohup uv run uvicorn app.main:app --host 0.0.0.0 --port 3001 >$LOG_FILE 2>&1 &
+        # 后台运行模式 - 使用 env 传递环境变量
+        set -l env_vars
+        if test -f "$PROJECT_DIR/.env"
+            for line in (grep -v '^#' "$PROJECT_DIR/.env" | grep -v '^\s*$')
+                set -a env_vars $line
+            end
+        end
+        
+        # 构建环境变量前缀
+        if test (count $env_vars) -gt 0
+            env $env_vars nohup uv run uvicorn app.main:app --host 0.0.0.0 --port 3001 >$LOG_FILE 2>&1 &
+        else
+            nohup uv run uvicorn app.main:app --host 0.0.0.0 --port 3001 >$LOG_FILE 2>&1 &
+        end
+        
         set -l pid $last_pid
         echo $pid >$PID_FILE
-        sleep 1
+        sleep 2
         
         if kill -0 $pid 2>/dev/null
             log_info "服务已在后台启动 (PID: $pid)"
@@ -63,6 +76,7 @@ function start_server
             log_info "停止服务: ./start.fish stop"
         else
             log_error "服务启动失败，请查看日志: $LOG_FILE"
+            cat $LOG_FILE | tail -10
             exit 1
         end
     else
