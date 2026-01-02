@@ -20,3 +20,8 @@ venv/
 scripts/.env
 .env
 *.env
+
+# secrets
+scripts/.env
+.env
+*.env
