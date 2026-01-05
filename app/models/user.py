@@ -1,13 +1,14 @@
 """
 数据库模型 - 用户
 """
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import String, Boolean, Text, DateTime, Integer, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.timezone import now_beijing, BEIJING_TZ
 
 if TYPE_CHECKING:
     from app.models.post import Post, PostLike, PostFavorite
@@ -34,12 +35,12 @@ class User(Base):
     
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
-        default=lambda: datetime.now(timezone.utc)
+        default=now_beijing
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc)
+        default=now_beijing,
+        onupdate=now_beijing
     )
     
     # 关系
@@ -79,7 +80,7 @@ class Follow(Base):
     following_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
+        default=now_beijing
     )
     
     # 关系

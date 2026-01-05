@@ -2,7 +2,7 @@
 站点相关路由
 """
 from typing import Annotated, Optional
-from datetime import datetime, date, timezone
+from datetime import datetime, date
 import random
 import hashlib
 
@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import get_current_user_optional
+from app.core.timezone import now_beijing, BEIJING_TZ
 from app.models.user import User
 from app.models.post import Post
 from app.models.site import Fortune, Developer, UserFortune
@@ -62,8 +63,8 @@ async def get_site_stats(
     total_posts = total_posts_result.scalar() or 0
     
     # 今日新帖
-    today = datetime.now(timezone.utc).date()
-    today_start = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
+    today = now_beijing().date()
+    today_start = datetime.combine(today, datetime.min.time()).replace(tzinfo=BEIJING_TZ)
     today_posts_result = await db.execute(
         select(func.count(Post.id)).where(Post.created_at >= today_start)
     )

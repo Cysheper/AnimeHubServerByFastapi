@@ -1,13 +1,14 @@
 """
 数据库模型 - 评论
 """
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Text, Integer, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.timezone import now_beijing
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -26,7 +27,7 @@ class Comment(Base):
     
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
+        default=now_beijing
     )
     
     # 关系
@@ -44,7 +45,7 @@ class CommentLike(Base):
     comment_id: Mapped[int] = mapped_column(ForeignKey("comments.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
+        default=now_beijing
     )
     
     # 关系

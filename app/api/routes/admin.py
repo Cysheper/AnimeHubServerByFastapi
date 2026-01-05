@@ -2,7 +2,7 @@
 管理员相关路由
 """
 from typing import Annotated, Optional
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, func, or_
@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.deps import get_admin_user
+from app.core.timezone import now_beijing, BEIJING_TZ
 from app.models.user import User
 from app.models.post import Post
 from app.models.comment import Comment
@@ -243,8 +244,8 @@ async def get_admin_stats(
     total_users = total_users_result.scalar() or 0
     
     # 今日统计
-    today = datetime.now(timezone.utc).date()
-    today_start = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
+    today = now_beijing().date()
+    today_start = datetime.combine(today, datetime.min.time()).replace(tzinfo=BEIJING_TZ)
     
     today_posts_result = await db.execute(
         select(func.count(Post.id)).where(Post.created_at >= today_start)

@@ -2,7 +2,7 @@
 帖子相关路由
 """
 from typing import Annotated, Optional
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, func, desc
@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, get_current_user_optional
+from app.core.timezone import now_beijing
 from app.models.user import User
 from app.models.post import Post, PostLike, PostFavorite
 from app.models.comment import Comment
@@ -371,7 +372,7 @@ async def update_post(
     if post_data.images is not None:
         post.images = post_data.images
     
-    post.updated_at = datetime.now(timezone.utc)
+    post.updated_at = now_beijing()
     
     await db.flush()
     await db.refresh(post)

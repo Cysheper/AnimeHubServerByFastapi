@@ -1,13 +1,14 @@
 """
 站点数据模型 - 运势和开发者信息
 """
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import String, Text, Integer, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+from app.core.timezone import now_beijing
 
 
 class Fortune(Base):
@@ -44,5 +45,5 @@ class UserFortune(Base):
     date: Mapped[str] = mapped_column(String(10), index=True, nullable=False)  # YYYY-MM-DD
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
+        default=now_beijing
     )
